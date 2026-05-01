@@ -23,6 +23,13 @@
   --r:12px;--rs:8px;--rl:16px;
   --sh:0 2px 8px rgba(0,0,0,.3);--sh-md:0 4px 16px rgba(0,0,0,.4);--sh-lg:0 8px 32px rgba(0,0,0,.5);
 }
+.yt-thumb{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:var(--rs);background:#000;cursor:pointer;box-shadow:var(--sh-md)}
+.yt-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:var(--rs);transition:opacity .2s}
+.yt-thumb:hover img{opacity:.85}
+.yt-play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:44px;background:#ff0000;border-radius:10px;display:flex;align-items:center;justify-content:center;transition:transform .18s,background .18s;pointer-events:none}
+.yt-thumb:hover .yt-play-btn{background:#cc0000;transform:translate(-50%,-50%) scale(1.07)}
+.yt-play-icon{width:0;height:0;border-style:solid;border-width:11px 0 11px 20px;border-color:transparent transparent transparent #fff;margin-left:4px}
+.yt-unavailable{display:none;padding:12px 14px}
 html.light-mode{
   --bg:#f0f0f5;--surface:#ffffff;--surface2:#f5f5fa;--surface3:#e8e8f0;
   --border:#d0d0e0;--border2:#b0b0c0;
@@ -1398,43 +1405,53 @@ function buildDayCard(d){
   div.className='day-card';div.id='dc-'+d;div.style.display='none';
 
   // ── VIDEO RENDERING: Direct iframes + search link fallback ──
-  const vids = (dd.links || []).filter(l => l.id);
-  const searches = (dd.links || []).filter(l => !l.id);
-  let vidHTML = '';
-  
-  if (vids.length > 0) {
-    if (vids.length > 1) {
-      vidHTML += '<div class="vid-tab-row">';
-      vids.forEach((v, vi) => {
-        vidHTML += '<button class="vid-tab-btn'+(vi===0?' active':'')+'" onclick="switchVideoPane(this,'+d+','+vi+')">'+v.label+'</button>';
-      });
-      vidHTML += '</div>';
-    }
+  // ── VIDEO RENDERING: Thumbnail click-to-load (avoids "Video unavailable") ──
+const vids = (dd.links || []).filter(l => l.id);
+const searches = (dd.links || []).filter(l => !l.id);
+let vidHTML = '';
+
+if (vids.length > 0) {
+  if (vids.length > 1) {
+    vidHTML += '<div class="vid-tab-row">';
     vids.forEach((v, vi) => {
-      const embedSrc = 'https://www.youtube-nocookie.com/embed/'+v.id+'?rel=0&modestbranding=1';
-      const ytLink = 'https://www.youtube.com/watch?v='+v.id;
-      vidHTML += '<div class="vid-iframe-wrap" style="'+(vi===0?'':'display:none')+'" data-vidpane="'+d+'">';
-      vidHTML += '<div class="vid-iframe-container">';
-      vidHTML += '<iframe src="'+embedSrc+'" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="'+v.label+'"></iframe>';
-      vidHTML += '</div>';
-      vidHTML += '<div class="vid-open-row"><a class="vid-open-link" href="'+ytLink+'" target="_blank" rel="noopener">↗ Open in YouTube</a></div>';
-      vidHTML += '</div>';
+      vidHTML += '<button class="vid-tab-btn'+(vi===0?' active':'')+'" onclick="switchVideoPane(this,'+d+','+vi+')">'+v.label+'</button>';
     });
-    if (searches.length > 0) {
-      vidHTML += '<div class="vid-list" style="margin-top:8px">';
-      searches.forEach(l => {
-        vidHTML += '<a class="vid-card" href="'+l.url+'" target="_blank" rel="noopener"><div class="vid-play-btn"><div class="vid-play-arrow"></div></div><div class="vid-info"><div class="vid-title">'+l.label+'</div><div class="vid-sub">YouTube Search</div></div><div class="vid-arrow">↗</div></a>';
-      });
-      vidHTML += '</div>';
-    }
-  } else {
-    vidHTML = '<div class="vid-list">';
-    dd.links.forEach(l => {
+    vidHTML += '</div>';
+  }
+  vids.forEach((v, vi) => {
+    const ytLink = 'https://www.youtube.com/watch?v='+v.id;
+    const thumbHq  = 'https://img.youtube.com/vi/'+v.id+'/hqdefault.jpg';
+    const thumbMq  = 'https://img.youtube.com/vi/'+v.id+'/mqdefault.jpg';
+    const paneId = 'vidpane-'+d+'-'+vi;
+    vidHTML += '<div id="'+paneId+'" style="'+(vi===0?'':'display:none')+'">'
+      + '<div class="vid-iframe-wrap">'
+      // Thumbnail click-to-load
+      + '<div class="yt-thumb" id="ythumb-'+d+'-'+vi+'" onclick="loadVidEmbed('+d+','+vi+',\''+v.id+'\',\''+ytLink+'\')">'
+      + '<img src="'+thumbHq+'" onerror="this.src=\''+thumbMq+'\'" alt="'+v.label+'" loading="lazy">'
+      + '<div class="yt-play-btn"><div class="yt-play-icon"></div></div>'
+      + '</div>'
+      // Fallback if embed also fails (shown after user clicks and embed errors)
+      + '<div class="yt-unavailable" id="yterr-'+d+'-'+vi+'">'
+      + '<a class="vid-card" href="'+ytLink+'" target="_blank" rel="noopener">'
+      + '<div class="vid-play-btn"><div class="vid-play-arrow"></div></div>'
+      + '<div class="vid-info"><div class="vid-title">'+v.label+'</div><div class="vid-sub">↗ Embedding disabled — open in YouTube</div></div>'
+      + '<div class="vid-arrow">↗</div></a></div>'
+      + '</div></div>';
+  });
+  if (searches.length > 0) {
+    vidHTML += '<div class="vid-list" style="margin-top:8px">';
+    searches.forEach(l => {
       vidHTML += '<a class="vid-card" href="'+l.url+'" target="_blank" rel="noopener"><div class="vid-play-btn"><div class="vid-play-arrow"></div></div><div class="vid-info"><div class="vid-title">'+l.label+'</div><div class="vid-sub">YouTube Search</div></div><div class="vid-arrow">↗</div></a>';
     });
     vidHTML += '</div>';
   }
-
+} else {
+  vidHTML = '<div class="vid-list">';
+  dd.links.forEach(l => {
+    vidHTML += '<a class="vid-card" href="'+l.url+'" target="_blank" rel="noopener"><div class="vid-play-btn"><div class="vid-play-arrow"></div></div><div class="vid-info"><div class="vid-title">'+l.label+'</div><div class="vid-sub">YouTube Search</div></div><div class="vid-arrow">↗</div></a>';
+  });
+  vidHTML += '</div>';
+}
   const clHTML=dd.checklist.map((item,i)=>{
     const k=d+'_'+i,chk=subChecks[k]?'checked':'';
     return '<div class="ci '+chk+'" id="sc-'+d+'-'+i+'" onclick="toggleSub('+d+','+i+')"><div class="ci-box"></div><div class="ci-txt">'+item+'</div></div>';
@@ -2131,6 +2148,28 @@ document.addEventListener('click',()=>{document.getElementById('notif-panel').cl
 })();
 
 // ── EXPOSE GLOBALS ─────────────────────────────────────────────────
+window.loadVidEmbed = function(d, vi, videoId, ytLink) {
+  const thumb = document.getElementById('ythumb-'+d+'-'+vi);
+  if (!thumb) return;
+  const wrap = thumb.parentElement;
+  // Replace thumbnail with iframe
+  const container = document.createElement('div');
+  container.className = 'vid-iframe-container';
+  container.style.position = 'relative';
+  container.style.paddingBottom = '56.25%';
+  container.style.height = '0';
+  container.style.overflow = 'hidden';
+  container.style.borderRadius = 'var(--rs)';
+  container.style.background = '#000';
+  container.style.boxShadow = 'var(--sh-md)';
+  container.innerHTML = '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;border-radius:var(--rs)" src="https://www.youtube-nocookie.com/embed/'+videoId+'?rel=0&modestbranding=1&autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+  thumb.replaceWith(container);
+  // Add "open in YouTube" link below
+  const openRow = document.createElement('div');
+  openRow.className = 'vid-open-row';
+  openRow.innerHTML = '<a class="vid-open-link" href="'+ytLink+'" target="_blank" rel="noopener">↗ Open in YouTube</a>';
+  wrap.appendChild(openRow);
+};
 window.answerQ=answerQ;window.clearNotifs=clearNotifs;window.closeAll=closeAll;
 window.closeSidebar=closeSidebar;window.confirmLogout=confirmLogout;
 window.doLogin=doLogin;window.doRegister=doRegister;window.exportData=exportData;
