@@ -1,0 +1,389 @@
+// ══════════════════════════════════════════════════════════════════
+// GOOGLE APPS SCRIPT — Security+ Study App Backend
+// ================================================================
+// DEPLOYMENT INSTRUCTIONS:
+// 1. Go to sheets.google.com → Create a new blank spreadsheet
+// 2. Rename Sheet1 to "Users" (for user accounts)
+// 3. Add another sheet named "Progress" (for saved progress data)
+// 4. Extensions → Apps Script → Paste this entire code → Save
+// 5. Click "Deploy" → "New deployment" → Type: "Web App"
+// 6. Execute as: "Me", Who has access: "Anyone" (or "Anyone with Google account")
+// 7. Click "Deploy" → Authorize → Copy the deployment URL
+// 8. Paste that URL into your HTML file's GAS_URL constant
+// ══════════════════════════════════════════════════════════════════
+
+// ── SHEET SETUP ───────────────────────────────────────────────────
+const USERS_SHEET = "Users";
+const PROGRESS_SHEET = "Progress";
+
+// Column indices for Users sheet (1-based)
+const U_COL = {
+  USERNAME: 1,
+  NAME: 2,
+  PASSWORD_HASH: 3,
+  CREATED: 4,
+  LAST_LOGIN: 5,
+  TOTAL_XP: 6,
+  DAYS_COMPLETED: 7
+};
+
+// Column indices for Progress sheet
+const P_COL = {
+  USERNAME: 1,
+  DATA_KEY: 2,
+  DATA_VALUE: 3,
+  UPDATED: 4
+};
+
+// ── INITIALIZATION ────────────────────────────────────────────────
+function ensureSheetsExist() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Ensure Users sheet exists
+  let usersSheet = ss.getSheetByName(USERS_SHEET);
+  if (!usersSheet) {
+    usersSheet = ss.insertSheet(USERS_SHEET);
+    usersSheet.appendRow([
+      "Username",
+      "Display Name", 
+      "Password Hash",
+      "Created",
+      "Last Login",
+      "Total XP",
+      "Days Completed"
+    ]);
+    // Freeze header row
+    usersSheet.setFrozenRows(1);
+    // Make it look nice
+    usersSheet.getRange(1, 1, 1, 7).setFontWeight("bold").setBackground("#1a1a2e").setFontColor("#ffffff");
+  }
+  
+  // Ensure Progress sheet exists
+  let progressSheet = ss.getSheetByName(PROGRESS_SHEET);
+  if (!progressSheet) {
+    progressSheet = ss.insertSheet(PROGRESS_SHEET);
+    progressSheet.appendRow([
+      "Username",
+      "Data Key",
+      "Data Value",
+      "Last Updated"
+    ]);
+    progressSheet.setFrozenRows(1);
+    progressSheet.getRange(1, 1, 1, 4).setFontWeight("bold").setBackground("#1a1a2e").setFontColor("#ffffff");
+  }
+}
+
+// ── UTILITY FUNCTIONS ─────────────────────────────────────────────
+function getUserRow_(username) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][U_COL.USERNAME - 1] === username) {
+      return { row: i + 1, data: data[i] };
+    }
+  }
+  return null;
+}
+
+function getProgressRow_(username, key) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PROGRESS_SHEET);
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][P_COL.USERNAME - 1] === username && data[i][P_COL.DATA_KEY - 1] === key) {
+      return { row: i + 1, data: data[i] };
+    }
+  }
+  return null;
+}
+
+function setProgress_(username, key, value) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PROGRESS_SHEET);
+  const existing = getProgressRow_(username, key);
+  const now = new Date().toISOString();
+  
+  if (existing) {
+    sheet.getRange(existing.row, P_COL.DATA_VALUE).setValue(value);
+    sheet.getRange(existing.row, P_COL.UPDATED).setValue(now);
+  } else {
+    sheet.appendRow([username, key, value, now]);
+  }
+}
+
+function updateLastLogin_(username) {
+  const user = getUserRow_(username);
+  if (user) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+    sheet.getRange(user.row, U_COL.LAST_LOGIN).setValue(new Date().toISOString());
+  }
+}
+
+// ── MAIN API HANDLER ──────────────────────────────────────────────
+function doGet(e) {
+  ensureSheetsExist();
+  
+  const params = e.parameter;
+  const action = params.action || "";
+  const username = (params.username || "").toLowerCase().trim().replace(/[^a-z0-9_]/g, "");
+  const password = params.password || "";
+  const name = params.name || "";
+  
+  let response = { ok: false, error: "Unknown action" };
+  
+  try {
+    switch (action) {
+      
+      // ── REGISTER ──────────────────────────────────────────────
+      case "register":
+        if (!username || !password) {
+          response = { ok: false, error: "Username and password required" };
+          break;
+        }
+        if (getUserRow_(username)) {
+          response = { ok: false, error: "Username already taken" };
+          break;
+        }
+        
+        const usersSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+        const now = new Date().toISOString();
+        usersSheet.appendRow([
+          username,
+          name || username,
+          password, // Already hashed client-side
+          now,
+          now,
+          "0",
+          "0"
+        ]);
+        
+        response = {
+          ok: true,
+          message: "Account created successfully",
+          name: name || username,
+          created: now
+        };
+        break;
+        
+      // ── LOGIN ─────────────────────────────────────────────────
+      case "login":
+        if (!username || !password) {
+          response = { ok: false, error: "Username and password required" };
+          break;
+        }
+        
+        const userLogin = getUserRow_(username);
+        if (!userLogin) {
+          response = { ok: false, error: "User not found" };
+          break;
+        }
+        if (userLogin.data[U_COL.PASSWORD_HASH - 1] !== password) {
+          response = { ok: false, error: "Incorrect password" };
+          break;
+        }
+        
+        updateLastLogin_(username);
+        
+        // Gather all user progress data
+        const progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PROGRESS_SHEET);
+        const progressData = progressSheet.getDataRange().getValues();
+        const userData = {};
+        
+        for (let i = 1; i < progressData.length; i++) {
+          if (progressData[i][P_COL.USERNAME - 1] === username) {
+            const key = progressData[i][P_COL.DATA_KEY - 1];
+            const value = progressData[i][P_COL.DATA_VALUE - 1];
+            userData[key] = value;
+          }
+        }
+        
+        response = {
+          ok: true,
+          message: "Login successful",
+          name: userLogin.data[U_COL.NAME - 1] || username,
+          data: userData
+        };
+        break;
+        
+      // ── SAVE PROGRESS ─────────────────────────────────────────
+      case "saveProgress":
+        if (!username) {
+          response = { ok: false, error: "Username required" };
+          break;
+        }
+        if (!getUserRow_(username)) {
+          response = { ok: false, error: "User not found" };
+          break;
+        }
+        
+        // Save all the progress data pieces
+        const dataKeys = ["done", "subs", "xp", "ach", "scores"];
+        dataKeys.forEach(key => {
+          if (params[key] !== undefined) {
+            setProgress_(username, key, params[key]);
+          }
+        });
+        
+        // Update summary stats in Users sheet
+        updateLastLogin_(username);
+        const userRow = getUserRow_(username);
+        if (userRow) {
+          const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+          const xpVal = params.xp || userRow.data[U_COL.TOTAL_XP - 1] || "0";
+          sheet.getRange(userRow.row, U_COL.TOTAL_XP).setValue(String(xpVal));
+          
+          // Count completed days
+          const doneStr = params.done || "[]";
+          try {
+            const doneArr = JSON.parse(doneStr);
+            const doneCount = Array.isArray(doneArr) ? doneArr.length : 0;
+            sheet.getRange(userRow.row, U_COL.DAYS_COMPLETED).setValue(String(doneCount));
+          } catch (e) {
+            // If JSON parse fails, keep old value
+          }
+        }
+        
+        response = {
+          ok: true,
+          message: "Progress saved",
+          timestamp: new Date().toISOString()
+        };
+        break;
+        
+      // ── LEADERBOARD ───────────────────────────────────────────
+      case "leaderboard":
+        const lbSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+        const lbData = lbSheet.getDataRange().getValues();
+        const leaderboard = [];
+        
+        for (let i = 1; i < lbData.length; i++) {
+          const row = lbData[i];
+          leaderboard.push({
+            username: row[U_COL.USERNAME - 1],
+            name: row[U_COL.NAME - 1] || row[U_COL.USERNAME - 1],
+            xp: parseInt(row[U_COL.TOTAL_XP - 1]) || 0,
+            daysCompleted: parseInt(row[U_COL.DAYS_COMPLETED - 1]) || 0,
+            lastLogin: row[U_COL.LAST_LOGIN - 1]
+          });
+        }
+        
+        // Sort by XP descending
+        leaderboard.sort((a, b) => b.xp - a.xp);
+        
+        response = {
+          ok: true,
+          leaderboard: leaderboard.slice(0, 50) // Top 50
+        };
+        break;
+        
+      // ── DELETE ACCOUNT ────────────────────────────────────────
+      case "deleteAccount":
+        if (!username || !password) {
+          response = { ok: false, error: "Username and password required" };
+          break;
+        }
+        
+        const userDel = getUserRow_(username);
+        if (!userDel) {
+          response = { ok: false, error: "User not found" };
+          break;
+        }
+        if (userDel.data[U_COL.PASSWORD_HASH - 1] !== password) {
+          response = { ok: false, error: "Incorrect password" };
+          break;
+        }
+        
+        // Delete from Users sheet
+        const usersDelSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+        usersDelSheet.deleteRow(userDel.row);
+        
+        // Delete all progress data
+        const progDelSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PROGRESS_SHEET);
+        const progDelData = progDelSheet.getDataRange().getValues();
+        const rowsToDelete = [];
+        
+        for (let i = progDelData.length - 1; i >= 1; i--) {
+          if (progDelData[i][P_COL.USERNAME - 1] === username) {
+            rowsToDelete.push(i + 1);
+          }
+        }
+        
+        // Delete from bottom up to preserve row indices
+        rowsToDelete.forEach(rowNum => {
+          progDelSheet.deleteRow(rowNum);
+        });
+        
+        response = {
+          ok: true,
+          message: "Account and all data deleted permanently"
+        };
+        break;
+        
+      default:
+        response = { ok: false, error: "Unknown action: " + action };
+    }
+    
+  } catch (error) {
+    response = {
+      ok: false,
+      error: "Server error: " + error.toString()
+    };
+  }
+  
+  // Return JSON response with CORS headers
+  return ContentService
+    .createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ── ADMIN UTILITIES ────────────────────────────────────────────────
+// Run these functions manually from the Apps Script editor if needed
+
+function resetAllProgress() {
+  // WARNING: This deletes ALL progress data. Cannot be undone.
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const progressSheet = ss.getSheetByName(PROGRESS_SHEET);
+  const lastRow = progressSheet.getLastRow();
+  if (lastRow > 1) {
+    progressSheet.deleteRows(2, lastRow - 1);
+  }
+  Logger.log("All progress data deleted");
+}
+
+function countAllUsers() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+  const data = sheet.getDataRange().getValues();
+  const userCount = data.length - 1; // Subtract header row
+  Logger.log("Total registered users: " + userCount);
+  return userCount;
+}
+
+function getTotalStorageUsed() {
+  const usersSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(USERS_SHEET);
+  const progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PROGRESS_SHEET);
+  const users = usersSheet.getLastRow() - 1;
+  const progressEntries = progressSheet.getLastRow() - 1;
+  
+  Logger.log("Users: " + users);
+  Logger.log("Progress entries: " + progressEntries);
+  Logger.log("Estimated storage used: ~" + Math.round((users * 0.5 + progressEntries * 2) / 1024) + " KB");
+}
+
+function exportAllUserData() {
+  // Creates a new sheet with full export of all user data
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const usersSheet = ss.getSheetByName(USERS_SHEET);
+  const progressSheet = ss.getSheetByName(PROGRESS_SHEET);
+  
+  let exportSheet = ss.getSheetByName("Export_" + new Date().toISOString().slice(0, 10));
+  if (exportSheet) {
+    ss.deleteSheet(exportSheet);
+  }
+  exportSheet = ss.insertSheet("Export_" + new Date().toISOString().slice(0, 10));
+  
+  const userData = usersSheet.getDataRange().getValues();
+  exportSheet.getRange(1, 1, userData.length, userData[0].length).setValues(userData);
+  
+  const progressData = progressSheet.getDataRange().getValues();
+  exportSheet.getRange(userData.length + 2, 1, progressData.length, progressData[0].length).setValues(progressData);
+  
+  Logger.log("Data exported to sheet: " + exportSheet.getName());
+}
