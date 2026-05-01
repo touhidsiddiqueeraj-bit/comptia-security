@@ -3,6 +3,10 @@
 A self-contained, single-file study app for the **CompTIA Security+ SY0-701** exam. 60-day structured study plan with practice quizzes, progress tracking, and optional cloud sync via Google Sheets.
 
 
+
+Live at: https://touhidsiddiqueeraj-bit.github.io/comptia-security/
+
+
 ## Features
 
 - **60-day study plan** across 6 domains aligned to SY0-701 exam objectives
