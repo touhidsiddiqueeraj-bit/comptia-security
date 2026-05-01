@@ -1435,12 +1435,11 @@ function buildDayCard(d){
     vids.forEach((v, vi) => {
       const ytLink = 'https://www.youtube.com/watch?v='+v.id;
       const thumbUrl = 'https://img.youtube.com/vi/'+v.id+'/hqdefault.jpg';
-      const embedSrc = 'https://www.youtube-nocookie.com/embed/'+v.id+'?rel=0&modestbranding=1&autoplay=1';
       const paneId = 'vp-'+d+'-'+vi;
       vidHTML += '<div class="vid-iframe-wrap" style="'+(vi===0?'':'display:none')+'" data-vidpane="'+d+'" id="'+paneId+'">';
-      // Thumbnail click-to-play container
-      vidHTML += '<div class="vid-thumb-container" onclick="loadVideoEmbed(\'' + paneId + '\',\'' + v.id + '\',\'' + v.label.replace(/'/g,"\\'") + '\')">';
-      vidHTML += '<img class="vid-thumb-img" src="'+thumbUrl+'" alt="'+v.label+'" loading="lazy" onerror="this.parentElement.style.display=\'none\';document.getElementById(\''+paneId+'-err\').style.display=\'flex\'">';
+      // Thumbnail click-to-play — use data attributes to avoid inline escaping issues
+      vidHTML += '<div class="vid-thumb-container" data-paneid="'+paneId+'" data-vid="'+v.id+'">';
+      vidHTML += '<img class="vid-thumb-img" src="'+thumbUrl+'" alt="" loading="lazy" data-errid="'+paneId+'-err">';
       vidHTML += '<div class="vid-thumb-overlay"><div class="vid-play-circle"><div class="vid-play-tri"></div></div>';
       vidHTML += '<div class="vid-thumb-label">'+v.label+'</div></div></div>';
       // Embed container (hidden until click)
@@ -1506,27 +1505,31 @@ function buildDayCard(d){
 }
 
 
-function loadVideoEmbed(paneId, videoId, label) {
-  const pane = document.getElementById(paneId);
-  if (!pane) return;
-  const thumb = pane.querySelector('.vid-thumb-container');
-  const embedWrap = document.getElementById(paneId + '-embed');
-  const frame = document.getElementById(paneId + '-frame');
-  if (!thumb || !embedWrap || !frame) return;
-  // Hide thumbnail, show embed
-  thumb.style.display = 'none';
+// ── Video thumbnail click-to-play via event delegation ──────────────────────
+// Handles all .vid-thumb-container clicks — no inline onclick needed.
+document.addEventListener('click', function(e) {
+  var thumb = e.target.closest('.vid-thumb-container');
+  if (!thumb) return;
+  var paneId  = thumb.dataset.paneid;
+  var videoId = thumb.dataset.vid;
+  if (!paneId || !videoId) return;
+  var embedWrap = document.getElementById(paneId + '-embed');
+  var frame     = document.getElementById(paneId + '-frame');
+  if (!embedWrap || !frame) return;
+  thumb.style.display    = 'none';
   embedWrap.style.display = 'block';
-  // Set autoplay src
-  frame.src = 'https://www.youtube-nocookie.com/embed/' + videoId + '?rel=0&modestbranding=1&autoplay=1';
-  // Detect embed failure via message event (YouTube sends postMessage on errors in some cases)
-  // Also listen for load event timeout as heuristic
-  let loaded = false;
-  frame.onload = function() { loaded = true; };
-  setTimeout(function() {
-    // If frame is 0x0 or blocked, show fallback — but we can't reliably detect
-    // cross-origin block, so just keep as-is. The onerror on thumb img handles thumbnail 404.
-  }, 5000);
-}
+  frame.src = 'https://www.youtube-nocookie.com/embed/' + videoId +
+              '?rel=0&modestbranding=1&autoplay=1';
+});
+
+// Handle thumbnail image errors → show fallback card
+document.addEventListener('error', function(e) {
+  if (!e.target || e.target.tagName !== 'IMG' || !e.target.dataset.errid) return;
+  var fallback = document.getElementById(e.target.dataset.errid);
+  if (fallback) { fallback.style.display = 'flex'; }
+  var container = e.target.closest('.vid-thumb-container');
+  if (container) { container.style.display = 'none'; }
+}, true);
 
 function goToDay(d){
   currentDay=d;
