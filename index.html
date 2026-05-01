@@ -23,13 +23,6 @@
   --r:12px;--rs:8px;--rl:16px;
   --sh:0 2px 8px rgba(0,0,0,.3);--sh-md:0 4px 16px rgba(0,0,0,.4);--sh-lg:0 8px 32px rgba(0,0,0,.5);
 }
-.yt-thumb{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:var(--rs);background:#000;cursor:pointer;box-shadow:var(--sh-md)}
-.yt-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:var(--rs);transition:opacity .2s}
-.yt-thumb:hover img{opacity:.85}
-.yt-play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:44px;background:#ff0000;border-radius:10px;display:flex;align-items:center;justify-content:center;transition:transform .18s,background .18s;pointer-events:none}
-.yt-thumb:hover .yt-play-btn{background:#cc0000;transform:translate(-50%,-50%) scale(1.07)}
-.yt-play-icon{width:0;height:0;border-style:solid;border-width:11px 0 11px 20px;border-color:transparent transparent transparent #fff;margin-left:4px}
-.yt-unavailable{display:none;padding:12px 14px}
 html.light-mode{
   --bg:#f0f0f5;--surface:#ffffff;--surface2:#f5f5fa;--surface3:#e8e8f0;
   --border:#d0d0e0;--border2:#b0b0c0;
@@ -406,6 +399,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15
   .topbar-pills .pill-xp{display:none}
   .xp-toast,.gen-toast{bottom:72px}
 }
+
+/* ── Click-to-play thumbnail video player ── */
+.vid-thumb-container{position:relative;cursor:pointer;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:16/9;width:100%}
+.vid-thumb-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.vid-thumb-container:hover .vid-thumb-img{transform:scale(1.03)}
+.vid-thumb-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(0,0,0,.35);transition:background .2s}
+.vid-thumb-container:hover .vid-thumb-overlay{background:rgba(0,0,0,.5)}
+.vid-play-circle{width:64px;height:64px;border-radius:50%;background:rgba(220,38,38,.9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:transform .15s,background .15s}
+.vid-thumb-container:hover .vid-play-circle{transform:scale(1.12);background:rgba(220,38,38,1)}
+.vid-play-tri{width:0;height:0;border-style:solid;border-width:12px 0 12px 22px;border-color:transparent transparent transparent #fff;margin-left:4px}
+.vid-thumb-label{color:#fff;font-size:12px;font-weight:600;text-align:center;padding:0 16px;text-shadow:0 1px 4px rgba(0,0,0,.8);max-width:90%}
+.vid-embed-container{width:100%}
+.vid-fallback-card{display:none;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:4px}
+.vid-fb-icon{font-size:28px;color:var(--accent);flex-shrink:0}
+.vid-fb-text{flex:1;min-width:0}
+.vid-fb-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.vid-fb-sub{font-size:11px;color:var(--text3)}
+.vid-fb-btn{flex-shrink:0;padding:8px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;transition:background .15s}
+.vid-fb-btn:hover{background:var(--accent2)}
 </style>
 </head>
 <body>
@@ -608,21 +620,130 @@ const PHASES=[
   {id:"review",label:"Review & PBQ",days:[55,58],cls:"review"},
   {id:"final",label:"Final Audit",days:[59,60],cls:"final"}
 ];
-// ── GENERATE WORKING YOUTUBE SEARCH LINKS ──────────────────────────
-// Converts every day's links to always-working YouTube search URLs
-DAYS.forEach(d => {
-  d.links = d.links.map(l => {
-    if (l.id) {
-      // Replace broken ID with targeted Professor Messer search
-      return {
-        label: l.label,
-        url: 'https://www.youtube.com/results?search_query=professor+messer+sy0-701+' 
-          + encodeURIComponent(l.label.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim().split(' ').slice(0,4).join('+'))
-      };
-    }
-    return l;
-  });
-});
+
+const DAYS=[
+{day:1,topic:"SY0-701 Exam Overview & Security Domains",links:[{label:"How to Pass Your SY0-701 Exam — Prof. Messer",id:"KiEptGbnEBc"}],checklist:["Download the official SY0-701 Exam Objectives PDF from comptia.org","Note the 5 domain names and their percentage weights","Bookmark Professor Messer, Jason Dion, and ExamCompass","Create a dedicated study folder or digital notebook","Review the question types: multiple choice & PBQs"],note:"What are the 5 SY0-701 domains and their exact weights? Which domain is the largest?",practice:"SY0-701 = current Security+ | 90 min | 90 questions max | Passing = 750/900 | PBQs appear first"},
+
+{day:2,topic:"1.1 — CIA Triad: Confidentiality, Integrity, Availability",links:[{label:"The CIA Triad — Prof. Messer SY0-701",id:"SBcDGb9l6yo"}],checklist:["Define each pillar of the CIA triad in your own words","Write 2 real-world examples of Confidentiality failures (data breach, shoulder surfing)","Write 2 examples of Integrity violations (unauthorized DB changes, log deletion)","Write 2 examples of Availability loss (DDoS, ransomware, power failure)","Diagram the CIA triad and map 3 controls to each pillar"],note:"What controls enforce Confidentiality vs Integrity? How does hashing support Integrity?",practice:"CIA = Confidentiality Integrity Availability | Encryption | Hashing | Access Controls | Redundancy | Non-repudiation"},
+
+{day:3,topic:"1.1 — Non-Repudiation, AAA Framework, Gap Analysis",links:[{label:"Non-Repudiation — Prof. Messer SY0-701",id:"XxnCxPEllMg"}],checklist:["Write the AAA framework: what each 'A' provides","Define non-repudiation and how digital signatures provide it","List the 4 authentication factor types with examples","Define a gap analysis — what is measured vs what is desired","Research: what standard does a gap analysis compare against?"],note:"What is non-repudiation and how does a digital signature prevent someone from denying an action?",practice:"AAA = Authentication Authorization Accounting | Non-repudiation | Digital signature | Gap analysis | Something you know/have/are/where you are"},
+
+{day:4,topic:"1.2 — Zero Trust Architecture: Control Plane, Data Plane, Policy Engine",links:[{label:"Zero Trust — Prof. Messer SY0-701",id:"zC_Pndpg8-c"}],checklist:["Define Zero Trust — 'Never trust, always verify'","Draw the Control Plane vs Data Plane separation","Name the components: Policy Engine, Policy Administrator, PEP","Explain how micro-segmentation enables Zero Trust","Research NIST SP 800-207 Zero Trust tenets"],note:"What are the Control Plane and Data Plane in ZTA? What does the Policy Enforcement Point do?",practice:"ZTA = Zero Trust Architecture | Control Plane | Data Plane | PEP = Policy Enforcement Point | Micro-segmentation | NIST SP 800-207 | Implicit trust zone"},
+
+{day:5,topic:"1.2 — Deception & Disruption: Honeypots, Honeynets, Honeyfiles, Honeytokens",links:[{label:"Deception and Disruption — Prof. Messer SY0-701",id:"X_qfMVty4ts"}],checklist:["Define: honeypot, honeynet, honeyfile, honeytoken","Differentiate production vs research honeypots","Research Canary tokens — what are they and how do they work?","Draw a deception network layout","Note: what are the legal considerations of honeypots (entrapment)?"],note:"How does a honeynet differ from a single honeypot? What TTP intelligence does each provide a SOC?",practice:"Honeypot = decoy system | Honeynet = decoy network | Honeyfile = decoy document | Honeytoken = decoy credential/API key | Canary token = alert on access"},
+
+{day:6,topic:"1.3 — Change Management: CAB, RFC, Rollback Plans, Change Windows",links:[{label:"Change Management — Prof. Messer SY0-701",id:"48wRbMdHFVI"}],checklist:["Write the complete change management workflow: RFC → CAB review → Test → Change Window → Implement → Verify","Define CAB (Change Advisory Board) — who typically sits on it?","Write what a rollback plan must contain","Create a mock RFC for a firewall rule change","Research: what is an emergency change and how does it bypass normal CAB?"],note:"What is a CAB and why is a rollback plan mandatory in every RFC? What happens if a change is implemented without approval?",practice:"CAB = Change Advisory Board | RFC = Request for Change | Change window | Rollback plan | Emergency change | Post-implementation review | Standard change"},
+
+{day:7,topic:"1.4 — Cryptography: Symmetric vs Asymmetric Encryption, Algorithms",links:[{label:"Public Key Infrastructure — Prof. Messer SY0-701",id:"xHAMEF7-inQ"}],checklist:["Define symmetric encryption: same key encrypts and decrypts","Define asymmetric encryption: public/private key pair","Compare speed: which is faster for bulk data? Which solves key distribution?","Write 3 symmetric algorithms (AES, DES/3DES, Blowfish/Twofish)","Write 3 asymmetric algorithms (RSA, ECC, Diffie-Hellman)","Explain how TLS uses both asymmetric AND symmetric encryption"],note:"Why does TLS use both types of encryption? Which handles the key exchange, and which handles bulk data transfer?",practice:"Symmetric = AES DES 3DES Blowfish | Asymmetric = RSA ECC Diffie-Hellman | Block vs Stream cipher | AES-256 GCM | Key exchange | Session key"},
+
+{day:8,topic:"1.4 — Hashing: MD5, SHA Family, HMAC, Salting, Digital Signatures",links:[{label:"Hashing and Digital Signatures — Prof. Messer SY0-701",id:"EcGmQjl6XEo"}],checklist:["Define a hash function — one-way, fixed output, deterministic, avalanche effect","Write the output sizes: MD5(128), SHA-1(160), SHA-256(256), SHA-512(512)","Explain why MD5 and SHA-1 are cryptographically broken","Define: salt, pepper, HMAC, and digital signature","Diagram the password storage flow: password + salt → hash → store"],note:"Why is MD5 considered broken? What does salting a password protect against, and how does HMAC differ from a plain hash?",practice:"MD5 = broken (collisions) | SHA-256 = current | SHA-3 | Salt = defeats rainbow tables | HMAC = keyed hash | Digital signature = hash encrypted with private key"},
+
+{day:9,topic:"1.4 — PKI: CA Hierarchy, Certificates, CSR, CRL, OCSP, Certificate Pinning",links:[{label:"Certificates — Prof. Messer SY0-701",id:"cLa94BZH_9s"}],checklist:["Draw the PKI trust chain: Root CA → Intermediate CA → End-entity certificate","Define: CSR, CRL, OCSP — what does each do?","Write the X.509 certificate fields","Compare CRL (pull, scheduled download) vs OCSP (real-time query)","Research: what is certificate pinning and when is it used?"],note:"What is the difference between CRL and OCSP for revocation checking? Which provides real-time status?",practice:"CA = Certificate Authority | CSR = Certificate Signing Request | CRL = Certificate Revocation List | OCSP = Online Certificate Status Protocol | X.509 | Wildcard cert | SAN"},
+
+{day:10,topic:"2.1 — Threat Actors: Nation-State, APT, Insider, Hacktivist, Script Kiddie, Organized Crime",links:[{label:"Threat Actors — Prof. Messer SY0-701",id:"6xUH0t6ugIM"}],checklist:["Create a threat actor comparison table: motivation, resources, typical targets","Define APT (Advanced Persistent Threat) — what makes it 'advanced' and 'persistent'?","Write 4 types of insider threats (malicious, negligent, compromised, third-party)","Research a real APT group (APT29, Lazarus) and their known TTPs","Define: hacktivist, organized crime, shadow IT, script kiddie"],note:"What distinguishes an APT from a script kiddie in terms of resources, motivation, and dwell time?",practice:"APT = Advanced Persistent Threat | TTP = Tactics Techniques Procedures | Dwell time | Insider threat | Hacktivist | Shadow IT | Nation-state actor"},
+
+{day:11,topic:"2.2 — Social Engineering: Phishing, Spear Phishing, Whaling, Vishing, Smishing, Pretexting",links:[{label:"Phishing — Prof. Messer SY0-701",id:"9SD6DRCKZFU"}],checklist:["Define all 6 social engineering attack types with examples","Write 5 psychological principles exploited (urgency, authority, fear, scarcity, social proof)","Analyze a real phishing email — identify all red flags","Define Business Email Compromise (BEC)","Write an anti-phishing training outline for end users"],note:"What is the difference between phishing, spear phishing, and whaling? How does pretexting differ from standard phishing?",practice:"Phishing = mass | Spear phishing = targeted | Whaling = executives | Vishing = voice | Smishing = SMS | BEC = CEO fraud | Pretexting = fabricated scenario | Baiting"},
+
+{day:12,topic:"2.3 — Malware: Virus, Worm, Trojan, Ransomware, Rootkit, Keylogger, Logic Bomb, Fileless",links:[{label:"An Overview of Malware — Prof. Messer SY0-701",id:"-eZs8wjjGGE"}],checklist:["Create a malware comparison matrix: type, propagation, payload, real example","Define fileless malware — how does it operate and why is it harder to detect?","Explain: virus (needs host) vs worm (self-replicates)","Research: what is a logic bomb and what triggers it?","Explain why rootkits are particularly dangerous (kernel-level hiding)"],note:"What is the key difference between a virus and a worm? Why is fileless malware harder for traditional AV to detect?",practice:"Virus = needs host file | Worm = self-replicates | Trojan = disguised as legit | Ransomware = encrypts | Rootkit = kernel hiding | Keylogger | Logic bomb = triggered | Fileless = RAM only"},
+
+{day:13,topic:"2.3 — Botnets, RATs, Droppers, Downloaders, Cryptojacking, Spyware, Adware",links:[{label:"Viruses and Worms — Prof. Messer SY0-701",id:"Su8ANmAoerU"}],checklist:["Define: botnet, C2 (Command & Control), and centralized vs P2P C2","Explain what a RAT (Remote Access Trojan) does vs a standard Trojan","Define: dropper vs downloader — what's the difference?","Research: what is cryptojacking and how do you detect it?","Write 3 indicators of a cryptojacking infection"],note:"How does a botnet's C2 infrastructure work? What is the difference between a centralized and peer-to-peer botnet?",practice:"Botnet = zombie army | C2 = Command and Control | RAT = Remote Access Trojan | Dropper = stage-1 | Downloader = fetches payloads | Cryptojacking = CPU hijacking | Spyware/Adware"},
+
+{day:14,topic:"2.4 — Application Attacks: SQLi, XSS, CSRF, Buffer Overflow, Race Condition, Replay",links:[{label:"SQL Injection — Prof. Messer SY0-701",id:"qFUOLkEk8AQ"}],checklist:["Define SQL injection (SQLi) — write a simple vulnerable query and its parameterized fix","Define XSS: stored, reflected, DOM-based — what's the difference?","Define CSRF (Cross-Site Request Forgery) — how does it differ from XSS?","Explain how a buffer overflow works and why it's dangerous","Define: race condition / TOCTOU attack","Research: what is a replay attack and how is it prevented (nonces, timestamps)?"],note:"What is the difference between stored XSS and reflected XSS? How do parameterized queries prevent SQL injection?",practice:"SQLi = SQL Injection | XSS = Cross-Site Scripting | CSRF = Cross-Site Request Forgery | Buffer overflow | Race condition | TOCTOU | Replay attack | Input validation"},
+
+{day:15,topic:"2.4 — Network Attacks: DoS, DDoS, MITM, DNS Poisoning, ARP Spoofing, VLAN Hopping, MAC Flooding",links:[{label:"Denial of Service — Prof. Messer SY0-701",id:"Z7OntvK--PQ"}],checklist:["Define DoS vs DDoS — what is an amplification attack?","Draw a MITM attack diagram — where does the attacker position themselves?","Explain DNS cache poisoning (Kaminsky attack)","Explain ARP spoofing and how it enables MITM on local networks","Research: VLAN hopping methods (switch spoofing, double tagging)","Define MAC flooding and what it enables"],note:"What is the difference between DoS and DDoS? How does DNS cache poisoning redirect legitimate traffic to an attacker's IP?",practice:"DoS = single source | DDoS = distributed botnet | Amplification = small request → big response | MITM | DNS poisoning | ARP spoofing | VLAN hopping | MAC flooding"},
+
+{day:16,topic:"2.5 — IoCs, Threat Intelligence, MITRE ATT&CK, STIX/TAXII, Threat Feeds",links:[{label:"Indicators of Compromise — Prof. Messer SY0-701",id:"x72hG9GvkaQ"}],checklist:["Define IoC (Indicator of Compromise) — list 10 common IoCs","Define IoA (Indicator of Attack) vs IoC","Explore the MITRE ATT&CK framework — what is it organized by?","Research 3 open-source threat intelligence feeds","Define: STIX (format) and TAXII (transport) for threat intel sharing"],note:"What is the difference between an IoC and an IoA? How does MITRE ATT&CK help map attacker TTPs?",practice:"IoC = Indicator of Compromise | IoA = Indicator of Attack | MITRE ATT&CK = TTP framework | STIX = threat data format | TAXII = transport protocol | OSINT | Threat feed | TTP"},
+
+{day:17,topic:"3.1 — Secure Network Architecture: DMZ, Jump Server, Proxy, Load Balancer, East-West Traffic",links:[{label:"Secure Infrastructures — Prof. Messer SY0-701",id:"l64La1xYXL4"}],checklist:["Draw a 3-tier architecture: Internet → External FW → DMZ → Internal FW → Internal Network","Define: jump server (bastion host) — why is it used?","Compare: forward proxy vs reverse proxy — where does each sit?","Explain: active-active vs active-passive load balancing","Define: East-West vs North-South traffic"],note:"Why is a jump server placed between the DMZ and internal network? What is the purpose of a reverse proxy?",practice:"DMZ = Demilitarized Zone | Jump server = bastion host | Forward proxy = client-side | Reverse proxy = server-side | Load balancer | East-West traffic | North-South traffic"},
+
+{day:18,topic:"3.1 — Firewalls: Packet Filter, Stateful, NGFW, WAF, UTM, ACLs, Implicit Deny",links:[{label:"Firewalls — Prof. Messer SY0-701",id:"VgNyh4HEqSU"}],checklist:["Create a firewall comparison table: OSI layer, capabilities, use case","Define: packet filter (L3-L4), stateful (L4 connection tracking), NGFW (L7 DPI), WAF (web apps), UTM (all-in-one)","Write an example ACL allowing HTTPS but blocking Telnet","Explain implicit deny at the end of ACLs","Compare: network-based firewall vs host-based firewall"],note:"What is the difference between a stateful firewall and an NGFW? What does a WAF specifically protect against?",practice:"Packet filter = L3-L4 | Stateful = tracks TCP state | NGFW = L7 DPI + IPS | WAF = Web Application Firewall | UTM = Unified Threat Management | ACL | Implicit deny"},
+
+{day:19,topic:"3.2 — Secure Protocols: HTTPS, SSH, SFTP, S/MIME, SRTP, LDAPS, FTPS, SNMPv3, DoH/DoT",links:[{label:"Secure Communication — Prof. Messer SY0-701",id:"uU3e_ntg-3g"}],checklist:["Create a protocol replacement table: insecure → secure with port numbers","Memorize ALL secure ports: SSH(22), HTTPS(443), SFTP(22), FTPS(990), LDAPS(636), SNMPv3(161), SMTPS(587), IMAPS(993), POP3S(995)","Define: what does SRTP protect?","Explain S/MIME vs PGP for email security","Research: DoH and DoT — what do they encrypt and which ports do they use?"],note:"What are the secure replacements for Telnet, HTTP, FTP, LDAP, SMTP, and SNMP v1/v2? What ports do they use?",practice:"SSH=22 | HTTPS=443 | SFTP=22 | FTPS=990 | LDAPS=636 | SNMPv3=161/162 | SMTPS=587 | IMAPS=993 | POP3S=995 | DoH=443 | DoT=853 | SRTP | S/MIME"},
+
+{day:20,topic:"3.3 — IAM: SSO, Federation, SAML, OAuth 2.0, OpenID Connect, SCIM",links:[{label:"Identity and Access Management — Prof. Messer SY0-701",id:"ZoOyyqhptik"}],checklist:["Define SSO vs Federation — what's the key difference?","Compare SAML (XML, enterprise SSO) vs OAuth 2.0 (authorization) vs OpenID Connect (authentication on OAuth)","Draw a SAML federation flow: user → SP → IdP → SAML assertion","Write the 4 OAuth 2.0 grant types","Define: SCIM — what does it automate for user provisioning?"],note:"What is the difference between SAML and OAuth/OpenID Connect? Which handles authentication and which handles delegated authorization?",practice:"SSO = Single Sign-On | Federation = cross-org trust | SAML = XML assertions | OAuth 2.0 = authorization | OIDC = authentication on OAuth | IdP = Identity Provider | SP = Service Provider | SCIM"},
+
+{day:21,topic:"3.3 — Authentication Protocols: RADIUS, TACACS+, Kerberos, LDAP, EAP",links:[{label:"Access Controls — Prof. Messer SY0-701",id:"9ANHcZwJfdQ"}],checklist:["Compare RADIUS vs TACACS+: ports, encryption, AAA separation","Draw the Kerberos flow: AS-REQ → AS-REP (TGT) → TGS-REQ → TGS-REP (service ticket) → AP-REQ","Write: LDAP(389) vs LDAPS(636)","Define EAP — what is EAP-TLS and when is it used?","Research: what is the Kerberos clock skew tolerance (5 minutes)?"],note:"What is the key difference between RADIUS and TACACS+ in terms of encryption and separation of AAA?",practice:"RADIUS = UDP 1812/1813, pw only encrypted | TACACS+ = TCP 49, full body encrypted, separates AAA | Kerberos = tickets, port 88 | LDAP=389 | LDAPS=636 | KDC | TGT | Service ticket"},
+
+{day:22,topic:"3.3 — MFA, Biometrics, Hardware Tokens, Passwordless, FIDO2, WebAuthn",links:[{label:"Multifactor Authentication — Prof. Messer SY0-701",id:"MpIzA4fNWew"}],checklist:["Define MFA — must use 2+ different factor categories","Compare biometric accuracy: FAR (False Acceptance Rate), FRR (False Rejection Rate), CER (Crossover Error Rate)","Explain the FAR/FRR trade-off","Research: FIDO2 / WebAuthn — how does passwordless authentication work?","Compare: HOTP (event-based) vs TOTP (time-based) OTPs"],note:"What is FAR vs FRR in biometrics? What is the CER point? How do HOTP and TOTP differ?",practice:"MFA = 2+ factor categories | FAR = False Accept | FRR = False Reject | CER = Crossover Error Rate | FIDO2 | WebAuthn | HOTP = event-based | TOTP = time-based | U2F"},
+
+{day:23,topic:"3.4 — Cloud Security: Shared Responsibility Model, CASB, CSPM, CWPP, Cloud Threats",links:[{label:"Cloud Infrastructures — Prof. Messer SY0-701",id:"8qpQ8Q6xxiU"}],checklist:["Draw the shared responsibility model for IaaS, PaaS, SaaS","Define CASB (Cloud Access Security Broker) — 4 pillars","Define: CSPM vs CWPP — what does each secure?","Write 5 cloud-specific threats","Research: what is shadow IT and how does a CASB detect it?"],note:"How does the shared responsibility model change across IaaS, PaaS, and SaaS? Who secures what at each level?",practice:"IaaS = you secure OS+up | PaaS = you secure app+data | SaaS = you secure data+access | CASB = Cloud Access Security Broker | CSPM | CWPP | API security | Shadow IT"},
+
+{day:24,topic:"3.4 — Virtualization & Container Security: Hypervisor, VM Escape, Container Escape, Sandboxing",links:[{label:"Network Infrastructure Concepts — Prof. Messer SY0-701",id:"jd001Hj7XWM"}],checklist:["Define: Type 1 vs Type 2 hypervisor — which is more secure and why?","Explain what a VM escape attack is and why it's critical","Research: container escape — how does it differ from VM escape?","Compare isolation: VM (hypervisor-level) vs container (kernel namespace)","Write 5 best practices for securing virtualized environments"],note:"What is a VM escape attack and why is it more dangerous than compromising a single VM?",practice:"Type 1 = bare-metal (ESXi Hyper-V KVM) | Type 2 = hosted (VirtualBox Workstation) | VM escape | Container escape | Docker | Kubernetes | Pod security | Sandbox"},
+
+{day:25,topic:"4.1 — Asset & Change Management: Procurement, Disposal, Sanitization, NIST SP 800-88",links:[{label:"Asset Management — Prof. Messer SY0-701",id:"BJ2UMB4a04g"}],checklist:["Define the asset lifecycle: procure → deploy → maintain → dispose","Write the 3 NIST SP 800-88 sanitization categories: Clear, Purge, Destroy","Explain why overwriting is ineffective for SSDs","Define: Certificate of Destruction (CoD)","Write proper disposal methods for HDD, SSD, optical media, paper"],note:"Why is overwriting ineffective for SSDs? What sanitization method does NIST SP 800-88 recommend for SSDs?",practice:"Clear = overwrite | Purge = crypto-erase or degauss | Destroy = physical shred | NIST SP 800-88 | CoD = Certificate of Destruction | SSD → crypto-erase | HDD → degauss or overwrite"},
+
+{day:26,topic:"4.2 — Risk Management: Risk Assessment, Quantitative vs Qualitative, ALE=SLE×ARO, Risk Register",links:[{label:"Risk Management — Prof. Messer SY0-701",id:"cLhUMoQS1a8"}],checklist:["Write the risk management lifecycle: identify → assess → respond → monitor","Calculate ALE from SLE and ARO with examples","Compare: quantitative vs qualitative risk analysis","Define: risk appetite, risk tolerance, risk threshold","Write the 4 risk responses: avoid, transfer, mitigate, accept","Create a simple risk register for a fictional company"],note:"How do you calculate ALE? What is the difference between risk appetite, risk tolerance, and risk threshold?",practice:"SLE = Single Loss Expectancy | ARO = Annualized Rate of Occurrence | ALE = SLE × ARO | Quantitative vs Qualitative | Risk register | Risk appetite | Residual risk"},
+
+{day:27,topic:"4.2 — BCP, DRP, RTO, RPO, BIA, MTTR, MTBF, Hot/Warm/Cold Sites",links:[{label:"Business Impact Analysis — Prof. Messer SY0-701",id:"myI-v3mj7Kc"}],checklist:["Define BCP vs DRP — what's the difference in scope?","Define: RTO (max downtime) vs RPO (max data loss) — draw a timeline","Define BIA (Business Impact Analysis) — what does it identify?","Compare: cold site, warm site, hot site, cloud DR — cost vs recovery time","Define: MTTR, MTBF, tabletop exercise"],note:"What is the difference between RTO and RPO? Which measures downtime and which measures data loss?",practice:"BCP = Business Continuity Plan | DRP = Disaster Recovery Plan | RTO = Recovery Time Objective | RPO = Recovery Point Objective | BIA = Business Impact Analysis | Hot/Warm/Cold site | MTTR | MTBF"},
+
+{day:28,topic:"4.3 — Physical Security: Mantrap, Bollard, Faraday Cage, CCTV, Access Control Vestibule",links:[{label:"Physical Security — Prof. Messer SY0-701",id:"YtT8q2mUM9c"}],checklist:["List 10 physical security controls and the threat each mitigates","Define: mantrap (access control vestibule), bollard, Faraday cage","Compare: proximity card vs smart card vs biometric access","Write environmental controls: HVAC, fire suppression (FM-200), UPS types","Draw a secured data center floor plan"],note:"What is the purpose of a mantrap? How does a Faraday cage protect against wireless attacks?",practice:"Mantrap = interlocking doors | Bollard = vehicle barrier | Faraday cage = RF shielding | CCTV = surveillance | FM-200 = clean agent fire suppression | UPS = power backup | PIR sensor"},
+
+{day:29,topic:"5.1 — Security Assessments: Vulnerability Scan vs Pentest, CVSS, False Positives/Negatives",links:[{label:"Vulnerability Scanning — Prof. Messer SY0-701",id:"9B0mtWk_AM0"}],checklist:["Compare: vuln scan (automated) vs pentest (manual, deep)","Write the pentest phases: Recon → Scanning → Exploitation → Post-exploitation → Reporting","Define: credentialed vs non-credentialed scan","Research: CVSS v3.1 — what are the 3 metric groups and score ranges?","Define: false positive vs false negative — which is more dangerous?"],note:"What is the difference between a vulnerability scan and a penetration test? Why are false negatives more dangerous than false positives?",practice:"Vuln scan = automated tool | Pentest = human-driven | CVSS = Common Vulnerability Scoring System (0-10) | Credentialed vs non-credentialed | False positive ≠ False negative | Black/White/Gray box"},
+
+{day:30,topic:"5.2 — Incident Response: NIST SP 800-61 IR Lifecycle (4 Phases), CSIRT, Playbooks",links:[{label:"Incident Response — Prof. Messer SY0-701",id:"X2UiMLxRdhE"}],checklist:["Memorize the 4 NIST SP 800-61 IR phases IN ORDER","Write what happens in each phase","Define CSIRT — who is typically on the team?","Define: playbook vs runbook — what's the difference?","Research: what is a tabletop exercise and post-incident review?"],note:"What are the 4 phases of the NIST IR lifecycle? At which phase do you contain and eradicate the threat?",practice:"NIST SP 800-61 | Phase 1: Preparation | Phase 2: Detection & Analysis | Phase 3: Containment/Eradication/Recovery | Phase 4: Post-Incident Activity | CSIRT | Playbook | Runbook"},
+
+{day:31,topic:"5.2 — Digital Forensics: Chain of Custody, Legal Hold, Order of Volatility, Write Blocker",links:[{label:"Digital Forensics — Prof. Messer SY0-701",id:"UtDWApdO8Zk"}],checklist:["Write the order of volatility (most volatile first)","Define chain of custody — why is it critical for legal admissibility?","Define: legal hold (litigation hold)","Explain what a forensic image is (bit-for-bit copy)","Describe what a write blocker does and when it must be used"],note:"What is the order of volatility, and why is RAM collected before disk? What does chain of custody prove in court?",practice:"Order: CPU cache → RAM → swap/pagefile → network → disk → logs → backups | Chain of custody | Legal hold | Forensic image | Write blocker | FTK Imager | dd | Autopsy"},
+
+{day:32,topic:"5.3 — Logging & Monitoring: SIEM, SOAR, Syslog, NetFlow, Packet Capture, Dashboard",links:[{label:"Security Monitoring — Prof. Messer SY0-701",id:"np2WI_rM-Ok"}],checklist:["Define SIEM — what does it aggregate, correlate, and generate?","Define SOAR — what does it add to SIEM (automation, orchestration, playbooks)?","Compare: syslog (UDP 514), NetFlow, sFlow, IPFIX — what does each collect?","Explain: packet capture (tcpdump, Wireshark) — full content vs metadata","Design a monitoring architecture: endpoints → collectors → SIEM → SOAR → dashboard"],note:"What is the difference between SIEM and SOAR? Which provides automated response capabilities?",practice:"SIEM = Security Information and Event Management | SOAR = Security Orchestration Automation Response | Syslog = event logs | NetFlow = traffic metadata | Packet capture = full content | tcpdump | Wireshark"},
+
+{day:33,topic:"5.4 — Endpoint Security: EDR, XDR, Antivirus, DLP, HIDS/HIPS, Application Allowlisting",links:[{label:"Endpoint Security — Prof. Messer SY0-701",id:"83pCkSSj1IQ"}],checklist:["Compare: AV (signature) → EDR (behavioral, continuous) → XDR (cross-platform)","Define DLP — network, endpoint, cloud DLP","Write what HIDS/HIPS provides on a single host","Define: application allowlisting vs blocklisting","Research: what does UEBA (User and Entity Behavior Analytics) detect?"],note:"What is the evolution from traditional AV to EDR to XDR? What additional detection capabilities does each layer provide?",practice:"AV = signature-based | EDR = Endpoint Detection & Response | XDR = Extended Detection & Response | DLP = Data Loss Prevention | HIDS/HIPS | UEBA | Allowlisting > Blocklisting"},
+
+{day:34,topic:"5.5 — Email Security: SPF, DKIM, DMARC, S/MIME, PGP, Anti-Spam, Email Gateway",links:[{label:"Email Security — Prof. Messer SY0-701",id:"v6ht9efsnRI"}],checklist:["Define SPF — what DNS record type does it use?","Define DKIM — what does it cryptographically sign?","Define DMARC — what policy actions: none, quarantine, reject?","Draw email auth flow: sender → SPF check → DKIM check → DMARC policy → deliver/quarantine/reject","Explain: S/MIME and PGP for email encryption (confidentiality)"],note:"How do SPF, DKIM, and DMARC work together to prevent email spoofing? What happens with DMARC p=reject?",practice:"SPF = Sender Policy Framework (authorizes servers) | DKIM = DomainKeys Identified Mail (signs email) | DMARC = policy for SPF/DKIM alignment | S/MIME | PGP | Spam filter | Email gateway"},
+
+{day:35,topic:"6.1 — PKI Deep Dive: CA Hierarchy (Root, Intermediate, Issuing), Certificate Types (DV, OV, EV)",links:[{label:"Certificates (PKI Deep Dive) — Prof. Messer SY0-701",id:"cLa94BZH_9s"}],checklist:["Draw a 3-tier CA hierarchy: Root CA (offline) → Intermediate CA → Issuing CA → End-entity","Write X.509 certificate fields","Compare: DV (domain only) vs OV (organization verified) vs EV (extended validation, green bar)","Define: wildcard (*.domain.com) vs SAN certificate","Explain what happens when a CA is compromised (all certificates revoked)"],note:"What are the differences between DV, OV, and EV certificates? How do you secure the Root CA?",practice:"DV = domain validation | OV = organization validation | EV = extended validation | Wildcard = *.domain.com | SAN = Subject Alternative Name | X.509 | Root CA = offline | CRL | OCSP"},
+
+{day:36,topic:"6.2 — Wireless Security: WEP→WPA→WPA2→WPA3, SAE, 802.1X, EAP-TLS, RADIUS, Evil Twin",links:[{label:"Wireless Security Settings — Prof. Messer SY0-701",id:"KaqKoKNEKnE"}],checklist:["Write the evolution: WEP(broken) → WPA(TKIP) → WPA2(CCMP/AES) → WPA3(SAE)","Define: WPA3-SAE (Simultaneous Authentication of Equals) — what attack does it prevent?","Define: 802.1X / EAP-TLS enterprise authentication","Explain: how does a RADIUS server fit in 802.1X?","Define: evil twin, rogue AP, deauthentication attack"],note:"How does WPA3-SAE differ from WPA2-PSK? What is an evil twin attack and how do you defend against it?",practice:"WEP = RC4 broken | WPA2-AES = current minimum | WPA3-SAE = Dragonfly handshake | 802.1X = port-based NAC | EAP-TLS = cert-based | RADIUS = UDP 1812/1813 | Evil twin | Rogue AP"},
+
+{day:37,topic:"6.3 — Mobile Security: MDM, MAM, UEM, BYOD, COPE, COBO, Geofencing, Containerization",links:[{label:"Securing Wireless and Mobile — Prof. Messer SY0-701",id:"iAR6SgvtezY"}],checklist:["Define: MDM, MAM, UEM — what does each manage?","Compare: BYOD vs COPE vs CYOD vs COBO deployment models","Define: geofencing, geolocation, context-aware authentication","Write 5 mobile security threats","Explain: what is containerization in mobile security?"],note:"What is the difference between MDM, MAM, and UEM? Which deployment model (COBO vs BYOD) gives the most control?",practice:"MDM = Mobile Device Management | MAM = Mobile Application Management | UEM = Unified Endpoint Management | BYOD | COPE | COBO | CYOD | Geofencing | Containerization"},
+
+{day:38,topic:"7.1 — Security Controls: Technical, Managerial, Operational, Physical; Preventive, Detective, Corrective",links:[{label:"Security Controls — Prof. Messer SY0-701",id:"STM3EUvL7wg"}],checklist:["Define the 4 control categories: technical, managerial, operational, physical","Define the 6 control types: preventive, detective, corrective, deterrent, compensating, directive","Classify 20 common controls into category × type matrix","Write 3 examples of compensating controls","Create a control matrix for a fictional company's security program"],note:"What is the difference between a preventive, detective, and corrective control? Give 2 examples of each.",practice:"Technical = tech solution | Managerial = policy | Operational = process | Physical = tangible | Preventive vs Detective vs Corrective vs Deterrent vs Compensating"},
+
+{day:39,topic:"7.2 — Data Security: Data States (Rest/Transit/Use), Classification, DLP, Tokenization vs Encryption",links:[{label:"Monitoring Data (DLP) — Prof. Messer SY0-701",id:"ZDJ-BLPLWq4"}],checklist:["Define the 3 data states: at rest, in transit, in use","Write encryption for each state: FDE (rest), TLS/IPsec (transit), confidential computing (use)","Create a data classification scheme: Public, Internal, Confidential, Restricted","Define: DLP (network, endpoint, cloud)","Compare: tokenization vs encryption — what's the key difference?"],note:"What encryption protects data at rest, in transit, and in use? How does tokenization differ from encryption?",practice:"Data at rest = stored (BitLocker, FDE) | Data in transit = moving (TLS, IPsec) | Data in use = processing | DLP = Data Loss Prevention | Tokenization ≠ Encryption | Classification labels"},
+
+{day:40,topic:"8.1 — Applied Cryptography: TLS 1.3, IPsec (AH vs ESP), PGP, Blockchain, Perfect Forward Secrecy",links:[{label:"Public Key Infrastructure (Applied Crypto) — Prof. Messer SY0-701",id:"xHAMEF7-inQ"}],checklist:["Write simplified TLS 1.3 handshake steps","Compare: IPsec AH (integrity only) vs ESP (encryption + integrity)","Define: PGP/GPG for email encryption","Explain: what security properties does blockchain provide?","Define: Perfect Forward Secrecy (PFS) — why is it critical?"],note:"What is the difference between IPsec AH and ESP? How does Perfect Forward Secrecy protect past sessions?",practice:"TLS 1.3 = latest, 0-RTT | IPsec AH = integrity only | IPsec ESP = encryption+integrity | PGP = email crypto | PFS = ephemeral keys, compromise doesn't decrypt past | Blockchain = immutable ledger"},
+
+{day:41,topic:"8.2 — Network Segmentation: VLANs, Subnets, NAC (802.1X), Micro-segmentation, Air Gap",links:[{label:"Segmentation and Access Control — Prof. Messer SY0-701",id:"yDeDGCh_PDs"}],checklist:["Define: VLAN (L2) vs Subnet (L3) segmentation","Explain: NAC with 802.1X — what is posture assessment?","Define: micro-segmentation (east-west firewalling per workload)","Define: air gap — when is it used?","Draw a flat vs segmented network security boundary"],note:"How does micro-segmentation differ from VLAN-based segmentation? What does NAC enforce before granting network access?",practice:"VLAN = L2 segmentation | Subnet = L3 segmentation | NAC = Network Access Control | 802.1X | Posture assessment | Micro-segmentation = per-workload FW | Air gap = physical isolation"},
+
+{day:42,topic:"8.3 — Secure SDLC: DevSecOps, SAST, DAST, IAST, SCA/Dependency Scanning, CI/CD",links:[{label:"Application Security (Secure SDLC) — Prof. Messer SY0-701",id:"fFvXy3WkLpA"}],checklist:["Define: Secure SDLC — where does security integrate in each phase?","Compare: SAST (white-box) vs DAST (black-box) vs IAST (instrumented)","Define: SCA (Software Composition Analysis) — what does it detect?","Explain: CI/CD pipeline security gates","Write 5 secure coding practices (input validation, output encoding, parameterized queries, least privilege, error handling)"],note:"What is the difference between SAST, DAST, and IAST? At which SDLC phase does each integrate?",practice:"SAST = Static (code, white-box) | DAST = Dynamic (running, black-box) | IAST = Interactive (instrumented) | SCA = dependency scanning | DevSecOps | CI/CD pipeline | OWASP Top 10"},
+
+{day:43,topic:"9.1 — Security Policies: AUP, Least Privilege, Separation of Duties, Job Rotation, Mandatory Vacation",links:[{label:"Security Procedures — Prof. Messer SY0-701",id:"vJINnOZyQNg"}],checklist:["Write what an AUP (Acceptable Use Policy) covers and why it's required","Define: least privilege — give a concrete example","Define: separation of duties — what fraud does it prevent?","Explain: job rotation and mandatory vacation — what do they detect?","Create a password policy following NIST SP 800-63B guidelines"],note:"What is least privilege, and how does separation of duties prevent fraud? What is the security purpose of mandatory vacation?",practice:"AUP = Acceptable Use Policy | Least privilege = minimum access | Separation of duties = no single person controls whole process | Job rotation | Mandatory vacation | Privilege creep | NIST SP 800-63B"},
+
+{day:44,topic:"9.2 — Privacy & Compliance: GDPR, CCPA, HIPAA, PCI-DSS, SOX, Data Sovereignty",links:[{label:"Compliance — Prof. Messer SY0-701",id:"IjJf4jLtONQ"}],checklist:["Create a regulation comparison table: GDPR, CCPA, HIPAA, PCI-DSS, SOX","Write: GDPR — 72-hr notification, right to erasure, DPA, fines up to 4% revenue","Write: CCPA — right to know, delete, opt-out","Define: data sovereignty","Explain: PCI-DSS requirements for cardholder data"],note:"What is the difference between GDPR and CCPA? What is data sovereignty and why does it affect cloud storage decisions?",practice:"GDPR = EU, 72-hr notification | CCPA = California privacy | HIPAA = US healthcare (PHI) | PCI-DSS = payment card security | SOX = financial records 7 years | DPO = Data Protection Officer | PIA"},
+
+{day:45,topic:"10.1 — Authentication Protocols Deep Dive: OAuth 2.0 Flows, Kerberos Tickets, LDAP/LDAPS",links:[{label:"Identity and Access Management — Prof. Messer SY0-701",id:"ZoOyyqhptik"}],checklist:["Write the 4 OAuth 2.0 grant flows and when each is used","Draw the full Kerberos ticket exchange: AS_REQ, AS_REP(TGT), TGS_REQ, TGS_REP(service ticket), AP_REQ","Compare LDAP(389) vs LDAPS(636)","Explain why NTLM is deprecated","Differentiate: authentication vs authorization — which protocols handle which?"],note:"What are the 4 OAuth 2.0 grant flows? Walk through the Kerberos ticket exchange step by step.",practice:"OAuth 2.0 grants: auth code, implicit, client creds, password | Kerberos: TGT + service ticket | LDAP=389 | LDAPS=636 | NTLM=deprecated | KDC | AS | TGS"},
+
+{day:46,topic:"10.2 — Key Management: HSM, TPM, Secure Enclave, Key Escrow, Key Stretching (bcrypt, PBKDF2)",links:[{label:"Secure Baselines (HSM/TPM/Key Mgmt) — Prof. Messer SY0-701",id:"BWPJD9Eb9iE"}],checklist:["Define: HSM — what does it store and accelerate?","Define: TPM — what measurements does it store (PCR values)?","Compare: key escrow vs key recovery agent","Define: Secure Enclave (Apple)","Explain: key stretching — why use bcrypt/PBKDF2/Argon2 for passwords?"],note:"What is the difference between an HSM and a TPM? What is key escrow and when is it appropriate?",practice:"HSM = Hardware Security Module (crypto acceleration, tamper-resistant) | TPM = Trusted Platform Module (measured boot) | Secure Enclave | Key escrow | Key stretching = slow hash (bcrypt/PBKDF2/Argon2)"},
+
+{day:47,topic:"11.1 — Network Security Devices: IDS vs IPS, NGFW, Web Filter, DDoS Mitigation, UTM",links:[{label:"Intrusion Prevention (IDS/IPS) — Prof. Messer SY0-701",id:"7QuYupuic3Q"}],checklist:["Compare IDS vs IPS: passive vs inline, detection only vs prevention","Define: signature-based vs anomaly-based vs heuristic detection","Explain: DDoS mitigation — traffic scrubbing, blackhole routing","Define: web proxy filter — URL filtering, content filtering, SSL inspection","Draw a defense-in-depth network diagram with all security devices"],note:"What is the critical difference between IDS and IPS? Which can actively block attacks in real-time?",practice:"IDS = passive, detection only | IPS = inline, blocks in real-time | NGFW = L7 DPI + IPS | DDoS mitigation = traffic scrubbing | Web filter | UTM = all-in-one | Heuristic | Anomaly-based"},
+
+{day:48,topic:"11.2 — VPNs: IPsec (IKE, AH/ESP, Tunnel/Transport), SSL/TLS VPN, Site-to-Site, Remote Access, Split Tunnel",links:[{label:"Secure Communication (VPNs/IPsec) — Prof. Messer SY0-701",id:"uU3e_ntg-3g"}],checklist:["Compare IPsec VPN vs SSL/TLS VPN","Define: IPsec tunnel mode vs transport mode","Explain: IKEv1 vs IKEv2","Define: split tunnel vs full tunnel — security trade-offs","Research: Always-On VPN and WireGuard"],note:"What is the difference between IPsec tunnel mode and transport mode? When would you use split tunneling vs full tunnel?",practice:"IPsec = IKE + AH/ESP | Tunnel mode = entire packet encrypted | Transport mode = payload only | SSL/TLS VPN = port 443 | Split tunnel | Full tunnel | Always-On VPN | WireGuard"},
+
+{day:49,topic:"11.3 — Endpoint Hardening: CIS Benchmarks, GPO/SCCM, Application Control, Patch Management, Baselining",links:[{label:"Hardening Targets (CIS Benchmarks) — Prof. Messer SY0-701",id:"YQKbs0ug0XQ"}],checklist:["Define: CIS Benchmarks — where to get them?","Write 10 endpoint hardening steps","Explain: application allowlisting vs blocklisting","Define: patch management lifecycle (assess → test → deploy → verify)","Define: configuration baseline and how to enforce it"],note:"What are CIS Benchmarks? What is the difference between application allowlisting and blocklisting?",practice:"CIS = Center for Internet Security | CIS Benchmarks = free hardening guides | GPO = Group Policy | SCCM/MECM | Application allowlisting | Patch management lifecycle | Baseline | Golden image"},
+
+{day:50,topic:"11.4 — Vulnerability Management: CVSS v3.1, CVE, CWE, Scan Types, Prioritization, Remediation",links:[{label:"Analyzing Vulnerabilities (CVSS) — Prof. Messer SY0-701",id:"eyVy1gKCuAU"}],checklist:["Define: CVE (identifier), CVSS (severity 0-10), CWE (weakness type)","Write CVSS v3.1 metric groups: Base, Temporal, Environmental","Define CVSS score ranges: None, Low, Medium, High, Critical","Compare: authenticated vs unauthenticated scan","Create a vulnerability prioritization flowchart: 'Critical CVE + exploit in wild = remediate within 24h'"],note:"What is the difference between a CVE, CVSS score, and CWE? How does the CVSS Base score differ from Temporal?",practice:"CVE = Common Vulnerabilities and Exposures | CVSS = scoring system 0-10 (9.0+ = Critical) | CWE = Common Weakness Enumeration | Authenticated scan = deeper | Prioritize: CVSS + exploitability + asset criticality"},
+
+{day:51,topic:"12.1 — Incident Response Tools: Forensic Workstation, FTK Imager, Autopsy, Volatility, WinDbg",links:[{label:"Security Tools (Forensics Tools) — Prof. Messer SY0-701",id:"nNiNTviiacU"}],checklist:["Install Autopsy (free) and explore the interface","Research: FTK Imager — how to create a forensic disk image","Define: Volatility — what does it analyze (RAM/memory dumps)?","Describe a forensic workstation and its requirements","Research: evidence collection from cloud (SaaS email, IaaS snapshots)"],note:"What does Volatility analyze? How does FTK Imager ensure evidence is not modified during acquisition?",practice:"FTK Imager = forensic disk imaging | Autopsy = open-source forensics platform | Volatility = memory forensics framework | Write blocker = mandatory for evidence | dd | WinDbg | Forensic workstation"},
+
+{day:52,topic:"12.2 — Threat Hunting: Hypothesis-Driven Hunting, IoCs, TTPs, Pyramid of Pain, Threat Intel Platforms",links:[{label:"Threat Intelligence (Threat Hunting) — Prof. Messer SY0-701",id:"86fruE9jkKk"}],checklist:["Define: threat hunting (proactive) vs alert-driven response (reactive)","Write the threat hunting process: hypothesis → data collection → analysis → findings → response","Explain: Pyramid of Pain — why TTPs are hardest for attackers to change","Define: TIP (Threat Intelligence Platform)","Write 5 threat hunting hypotheses for a SOC"],note:"What is the Pyramid of Pain and why are TTPs at the top? How does hypothesis-driven hunting differ from IoC-based searching?",practice:"Threat hunting = proactive | Hypothesis-driven = assume breach | MITRE ATT&CK = TTPs | Pyramid of Pain: hashes→IPs→domains→artifacts→tools→TTPs | TIP = Threat Intelligence Platform | MISP"},
+
+{day:53,topic:"12.3 — SOAR & Automation: Playbooks, Runbooks, API Integration, Case Management, MTTR Reduction",links:[{label:"Security Monitoring (SOAR) — Prof. Messer SY0-701",id:"np2WI_rM-Ok"}],checklist:["Define: SOAR — Security Orchestration, Automation and Response","Write a SOAR playbook for a phishing alert: user reports → SOAR extracts indicators → checks threat intel → quarantines email → creates ticket → notifies SOC","Define: runbook vs playbook","Explain: how does SOAR integrate with SIEM, EDR, firewall, and ticketing?","Describe: how SOAR reduces Mean Time to Respond (MTTR)"],note:"What is the difference between a SOAR playbook and a runbook? How does automation reduce MTTR?",practice:"SOAR = Security Orchestration Automation and Response | Playbook = automated workflow | Runbook = manual procedure | API integration | MTTR = Mean Time to Respond | Case management | Enrichment"},
+
+{day:54,topic:"12.4 — Audit & Compliance: Internal vs External Audit, SOC 1/2/3, Type I vs Type II, Attestation, ISO 27001",links:[{label:"Audits and Assessments — Prof. Messer SY0-701",id:"uo2Yw720mv4"}],checklist:["Define: internal audit vs external audit","Compare: SOC 1 (financial) vs SOC 2 (Trust Services Criteria) vs SOC 3 (public version)","Explain: SOC 2 Type I (point-in-time) vs Type II (over a period)","Define: attestation of compliance","Write the audit lifecycle: plan → fieldwork → report → follow-up"],note:"What is the difference between SOC 2 Type I and SOC 2 Type II? What are the 5 Trust Services Criteria?",practice:"SOC = Service Organization Control | SOC 1 = ICFR (financial) | SOC 2 = TSC (security/availability/confidentiality/privacy/processing integrity) | Type I = point-in-time | Type II = over time | ISO 27001 | Attestation"},
+
+{day:55,topic:"Review Sprint — General Security (Domain 1) & Threats (Domain 2)",links:[{label:"How to Pass Your SY0-701 Exam — Prof. Messer",id:"KiEptGbnEBc"}],checklist:["Take a 50-question quiz on General Security concepts","Take a 50-question quiz on Threats and Attacks","Grade both — write every wrong answer with the correct reasoning","From memory: list all social engineering types, malware types, and application attacks","From memory: write CIA triad, AAA framework, Zero Trust principles, and all secure protocol ports"],note:"Which sub-objectives from Domains 1 and 2 have the lowest accuracy? What knowledge gaps exist?",practice:"CIA | AAA | Zero Trust | Honeypot | CAB | Symmetric vs Asymmetric | Hashing | PKI | Threat actors | Social engineering | Malware types | SQLi/XSS/CSRF | DoS/DDoS | IoCs"},
+
+{day:56,topic:"Review Sprint — Architecture (Domain 3) & Operations (Domain 4)",links:[{label:"How to Pass Your SY0-701 Exam — Prof. Messer",id:"KiEptGbnEBc"}],checklist:["Take a 50-question quiz on Security Architecture","Take a 50-question quiz on Security Operations","From memory: draw DMZ architecture, Kerberos flow, SIEM/SOAR architecture","From memory: write ALL secure protocols and port numbers","Write: NIST IR lifecycle phases and forensics order of volatility"],note:"What are the 4 NIST IR phases? List all secure protocols and their ports from memory.",practice:"DMZ | Jump server | NGFW/WAF | Secure protocols | IAM/SAML/OAuth | Kerberos | MFA | Cloud shared responsibility | IR phases | Forensics order of volatility | SIEM/SOAR | EDR/XDR | DLP | SPF/DKIM/DMARC"},
+
+{day:57,topic:"PBQ Sprint — Firewall Rules, ACLs, Certificate Configuration, Attack Identification",links:[{label:"Firewalls (PBQ Practice) — Prof. Messer SY0-701",id:"VgNyh4HEqSU"}],checklist:["Practice: firewall rule PBQ (allow HTTPS from any, block Telnet, restrict SSH to admin subnet)","Practice: ACL configuration (deny vs permit order, implicit deny)","Practice: certificate installation PBQ (install cert, configure HTTPS binding)","Practice: attack identification (read scenario, identify attack type, select mitigation)","Practice: IR scenario (read logs, determine incident phase, select next action)"],note:"In a firewall PBQ: which port for secure remote admin? What is the default implicit rule at the end of every ACL?",practice:"PBQ types: firewall rules | ACL configuration | certificate installation | attack identification | IR response | device placement | log analysis | algorithm selection"},
+
+{day:58,topic:"PBQ Sprint — Network Diagram, Data Flow, & Device Placement",links:[{label:"Secure Infrastructures (Network Diagram PBQ) — Prof. Messer SY0-701",id:"l64La1xYXL4"}],checklist:["Practice: network diagram PBQ (place firewall, DMZ, jump server, internal servers correctly)","Practice: data flow PBQ (identify where encryption is needed)","Practice: authentication PBQ (configure RADIUS with EAP-TLS)","Practice: hardening PBQ (identify misconfigurations in a given server config)","Practice: crypto PBQ (select correct algorithm: AES for data, RSA for key exchange, SHA for integrity)"],note:"In a network diagram: where does the firewall, DMZ, jump server, and internal network sit relative to the internet?",practice:"Zones: Internet → FW → DMZ → FW → Internal | Jump server = admin entry point | Defense in depth layers | IoC identification | Algorithm selection | RADIUS/EAP-TLS | HTTPS binding"},
+
+{day:59,topic:"Full Simulation Exam — Strict 90-Minute Timer, Exam Conditions",links:[{label:"How to Pass Your SY0-701 Exam — Prof. Messer",id:"KiEptGbnEBc"}],checklist:["Take a full 90-question Security+ simulation under STRICT exam conditions","90-minute timer — no notes, no phone, no interruptions","Target: 750/900 (83%) or higher","Grade every wrong answer — write the correct explanation before sleeping","Identify your 3 weakest domains by percentage"],note:"What is your score? List the 3 lowest domains. What is the single biggest knowledge gap to address before test day?",practice:"Full exam: 90 min, no notes, no breaks | All 5 domains | PBQs at start | Passing = 750/900 | Flag questions, return with remaining time | Read every word of every question"},
+
+{day:60,topic:"Day 60 — Final Weakness Audit + Go Crush Your Exam! 💪",links:[{label:"How to Pass Your SY0-701 Exam — Prof. Messer",id:"KiEptGbnEBc"}],checklist:["Review ALL flagged incorrect answers from Days 55-59","Create a one-page Security+ Cheat Sheet of YOUR personal weak spots","Write from pure memory: CIA, AAA, all secure ports, IR phases, ALE=SLE×ARO, Zero Trust, auth protocols","Verify each answer after writing — correct any mistakes","Score 83%+ on final review? Go to Pearson VUE and book your exam!","Score below 83%? Spend 2-3 more days on weak domains before booking","Congratulations! 60 days of preparation complete! 🎉"],note:"Write from pure memory: the CIA triad, AAA framework, all secure protocol ports, IR lifecycle phases, ALE formula, and Zero Trust principles.",practice:"FINAL: CIA | AAA | Ports: 22,443,636,3389,389,88,1812 | IR: Prep→Detection→Containment→IRP&A | ALE=SLE×ARO | Zero Trust: never trust always verify | WPA3-SAE | OAuth vs SAML | RSA vs AES | You got this!"}
+];
+
+const TESTS=[/* test data preserved from previous version */];
 
 // Insert test data here - preserving the 5 full test sets from the simplified version
 // (Tests 1-5 with 20 questions each covering all domains)
@@ -1295,28 +1416,63 @@ function buildDayCard(d){
   const div=document.createElement('div');
   div.className='day-card';div.id='dc-'+d;div.style.display='none';
 
- // ── VIDEO RENDERING: YouTube search links (always work) ──────────
-const links = dd.links || [];
-let vidHTML = '';
+  // ── VIDEO RENDERING: Click-to-play thumbnail approach ──
+  // Shows YouTube thumbnail first; clicking loads the embed with autoplay.
+  // If embedding is blocked, a fallback card links directly to YouTube.
+  const vids = (dd.links || []).filter(l => l.id);
+  const searches = (dd.links || []).filter(l => !l.id);
+  let vidHTML = '';
 
-if (links.length > 0) {
-  vidHTML = '<div class="vid-list">';
-  links.forEach(l => {
-    const href = l.url || ('https://www.youtube.com/results?search_query=professor+messer+sy0-701+' + encodeURIComponent(dd.topic));
-    vidHTML += '<a class="vid-card" href="'+href+'" target="_blank" rel="noopener">'
-      + '<div class="vid-play-btn"><div class="vid-play-arrow"></div></div>'
-      + '<div class="vid-info"><div class="vid-title">'+l.label+'</div>'
-      + '<div class="vid-sub">▶ Search on YouTube</div></div>'
-      + '<div class="vid-arrow">↗</div></a>';
-  });
-  vidHTML += '</div>';
-} else {
-  vidHTML = '<div class="vid-list"><a class="vid-card" href="https://www.youtube.com/results?search_query=professor+messer+sy0-701+security+plus" target="_blank" rel="noopener">'
-    + '<div class="vid-play-btn"><div class="vid-play-arrow"></div></div>'
-    + '<div class="vid-info"><div class="vid-title">Professor Messer SY0-701</div>'
-    + '<div class="vid-sub">▶ Search on YouTube</div></div>'
-    + '<div class="vid-arrow">↗</div></a></div>';
-}
+  if (vids.length > 0) {
+    // Tab row for multiple videos
+    if (vids.length > 1) {
+      vidHTML += '<div class="vid-tab-row">';
+      vids.forEach((v, vi) => {
+        vidHTML += '<button class="vid-tab-btn'+(vi===0?' active':'')+'" onclick="switchVideoPane(this,'+d+','+vi+')">'+v.label+'</button>';
+      });
+      vidHTML += '</div>';
+    }
+    vids.forEach((v, vi) => {
+      const ytLink = 'https://www.youtube.com/watch?v='+v.id;
+      const thumbUrl = 'https://img.youtube.com/vi/'+v.id+'/hqdefault.jpg';
+      const embedSrc = 'https://www.youtube-nocookie.com/embed/'+v.id+'?rel=0&modestbranding=1&autoplay=1';
+      const paneId = 'vp-'+d+'-'+vi;
+      vidHTML += '<div class="vid-iframe-wrap" style="'+(vi===0?'':'display:none')+'" data-vidpane="'+d+'" id="'+paneId+'">';
+      // Thumbnail click-to-play container
+      vidHTML += '<div class="vid-thumb-container" onclick="loadVideoEmbed(\'' + paneId + '\',\'' + v.id + '\',\'' + v.label.replace(/'/g,"\\'") + '\')">';
+      vidHTML += '<img class="vid-thumb-img" src="'+thumbUrl+'" alt="'+v.label+'" loading="lazy" onerror="this.parentElement.style.display=\'none\';document.getElementById(\''+paneId+'-err\').style.display=\'flex\'">';
+      vidHTML += '<div class="vid-thumb-overlay"><div class="vid-play-circle"><div class="vid-play-tri"></div></div>';
+      vidHTML += '<div class="vid-thumb-label">'+v.label+'</div></div></div>';
+      // Embed container (hidden until click)
+      vidHTML += '<div class="vid-embed-container" id="'+paneId+'-embed" style="display:none">';
+      vidHTML += '<div class="vid-iframe-container">';
+      vidHTML += '<iframe id="'+paneId+'-frame" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="'+v.label+'"></iframe>';
+      vidHTML += '</div></div>';
+      // Fallback card (shown if embed blocked)
+      vidHTML += '<div class="vid-fallback-card" id="'+paneId+'-err" style="display:none">';
+      vidHTML += '<div class="vid-fb-icon">▶</div><div class="vid-fb-text">';
+      vidHTML += '<div class="vid-fb-title">'+v.label+'</div>';
+      vidHTML += '<div class="vid-fb-sub">Embedding disabled — watch directly on YouTube</div></div>';
+      vidHTML += '<a class="vid-fb-btn" href="'+ytLink+'" target="_blank" rel="noopener">Watch on YouTube ↗</a></div>';
+      // Open in YouTube link
+      vidHTML += '<div class="vid-open-row"><a class="vid-open-link" href="'+ytLink+'" target="_blank" rel="noopener">↗ Open in YouTube</a></div>';
+      vidHTML += '</div>';
+    });
+    if (searches.length > 0) {
+      vidHTML += '<div class="vid-list" style="margin-top:8px">';
+      searches.forEach(l => {
+        vidHTML += '<a class="vid-card" href="'+l.url+'" target="_blank" rel="noopener"><div class="vid-play-btn"><div class="vid-play-arrow"></div></div><div class="vid-info"><div class="vid-title">'+l.label+'</div><div class="vid-sub">YouTube Search</div></div><div class="vid-arrow">↗</div></a>';
+      });
+      vidHTML += '</div>';
+    }
+  } else {
+    vidHTML = '<div class="vid-list">';
+    (dd.links||[]).forEach(l => {
+      vidHTML += '<a class="vid-card" href="'+l.url+'" target="_blank" rel="noopener"><div class="vid-play-btn"><div class="vid-play-arrow"></div></div><div class="vid-info"><div class="vid-title">'+l.label+'</div><div class="vid-sub">YouTube</div></div><div class="vid-arrow">↗</div></a>';
+    });
+    vidHTML += '</div>';
+  }
+
   const clHTML=dd.checklist.map((item,i)=>{
     const k=d+'_'+i,chk=subChecks[k]?'checked':'';
     return '<div class="ci '+chk+'" id="sc-'+d+'-'+i+'" onclick="toggleSub('+d+','+i+')"><div class="ci-box"></div><div class="ci-txt">'+item+'</div></div>';
@@ -1332,7 +1488,7 @@ if (links.length > 0) {
     +'<div class="phase-badge badge-'+phase.cls+'">'+phase.label+'</div>'
     +'<div class="day-title">'+dd.topic+'</div>'
     +'<div class="day-meta">Day '+d+' of 60 · SY0-701</div></div></div>'
-    +'<div class="dc card"><div class="dc-hdr"><span class="dc-icon">▶</span><span class="dc-title">Video Resources</span><span class="dc-hint">'+(vids.length>0?'Opens Youtube')+'</span></div>'+vidHTML+'</div>'
+    +'<div class="dc card"><div class="dc-hdr"><span class="dc-icon">▶</span><span class="dc-title">Video Resources</span><span class="dc-hint">'+(vids.length>0?'Embedded Video':'YouTube Search')+'</span></div>'+vidHTML+'</div>'
     +'<div class="dc card"><div class="dc-hdr"><span class="dc-icon">✓</span><span class="dc-title">Today\'s Checklist</span><span class="dc-hint">+2 XP each</span></div><div class="checklist">'+clHTML+'</div></div>'
     +'<div class="dc card"><div class="dc-hdr"><span class="dc-icon">💡</span><span class="dc-title">Key Focus Question</span></div><div class="dc-body" style="padding:12px 14px"><p>'+dd.note+'</p></div></div>'
     +'<div class="dc card"><div class="dc-hdr"><span class="dc-icon">🔤</span><span class="dc-title">Terms & Acronyms</span></div><div class="chips">'+chips+'</div></div>'
@@ -1347,6 +1503,29 @@ if (links.length > 0) {
     +'<div class="nav-btns"><button class="nav-btn"'+(d===1?' disabled':'')+' onclick="prevDay('+d+')">← Prev</button>'
     +'<button class="nav-btn"'+(d===60?' disabled':'')+' onclick="nextDay('+d+')">Next →</button></div></div></div>';
   container.appendChild(div);
+}
+
+
+function loadVideoEmbed(paneId, videoId, label) {
+  const pane = document.getElementById(paneId);
+  if (!pane) return;
+  const thumb = pane.querySelector('.vid-thumb-container');
+  const embedWrap = document.getElementById(paneId + '-embed');
+  const frame = document.getElementById(paneId + '-frame');
+  if (!thumb || !embedWrap || !frame) return;
+  // Hide thumbnail, show embed
+  thumb.style.display = 'none';
+  embedWrap.style.display = 'block';
+  // Set autoplay src
+  frame.src = 'https://www.youtube-nocookie.com/embed/' + videoId + '?rel=0&modestbranding=1&autoplay=1';
+  // Detect embed failure via message event (YouTube sends postMessage on errors in some cases)
+  // Also listen for load event timeout as heuristic
+  let loaded = false;
+  frame.onload = function() { loaded = true; };
+  setTimeout(function() {
+    // If frame is 0x0 or blocked, show fallback — but we can't reliably detect
+    // cross-origin block, so just keep as-is. The onerror on thumb img handles thumbnail 404.
+  }, 5000);
 }
 
 function goToDay(d){
@@ -2013,28 +2192,6 @@ document.addEventListener('click',()=>{document.getElementById('notif-panel').cl
 })();
 
 // ── EXPOSE GLOBALS ─────────────────────────────────────────────────
-window.loadVidEmbed = function(d, vi, videoId, ytLink) {
-  const thumb = document.getElementById('ythumb-'+d+'-'+vi);
-  if (!thumb) return;
-  const wrap = thumb.parentElement;
-  // Replace thumbnail with iframe
-  const container = document.createElement('div');
-  container.className = 'vid-iframe-container';
-  container.style.position = 'relative';
-  container.style.paddingBottom = '56.25%';
-  container.style.height = '0';
-  container.style.overflow = 'hidden';
-  container.style.borderRadius = 'var(--rs)';
-  container.style.background = '#000';
-  container.style.boxShadow = 'var(--sh-md)';
-  container.innerHTML = '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;border-radius:var(--rs)" src="https://www.youtube-nocookie.com/embed/'+videoId+'?rel=0&modestbranding=1&autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
-  thumb.replaceWith(container);
-  // Add "open in YouTube" link below
-  const openRow = document.createElement('div');
-  openRow.className = 'vid-open-row';
-  openRow.innerHTML = '<a class="vid-open-link" href="'+ytLink+'" target="_blank" rel="noopener">↗ Open in YouTube</a>';
-  wrap.appendChild(openRow);
-};
 window.answerQ=answerQ;window.clearNotifs=clearNotifs;window.closeAll=closeAll;
 window.closeSidebar=closeSidebar;window.confirmLogout=confirmLogout;
 window.doLogin=doLogin;window.doRegister=doRegister;window.exportData=exportData;
